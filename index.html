@@ -5,67 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>本人平均缴费指数计算器</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Excel 解析 (SheetJS) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-  <!-- PDF 解析 (pdf.js) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 </head>
 <body>
-  <header class="header">
+  <header class="topbar">
     <h1>本人平均缴费指数计算器</h1>
-    <p>选择参保地，录入或导入逐年缴费基数，一键算出<strong>平均缴费指数</strong>与<strong>个人账户余额</strong>。</p>
+    <p class="sub">根据逐年缴费基数与参保地社平工资，计算平均缴费工资指数及个人账户余额</p>
   </header>
 
-  <main class="container">
+  <main class="wrap">
     <section class="card">
-      <label class="field">
-        <span>参保地</span>
-        <select id="province"></select>
-      </label>
+      <label class="lbl">参保地（省级行政区）</label>
+      <select id="province" class="select"></select>
+      <p id="gapHint" class="hint"></p>
+    </section>
 
+    <section class="card">
+      <label class="lbl">首次缴费年月</label>
+      <div class="row">
+        <select id="startYear" class="select inline"></select>
+        <span>年</span>
+        <select id="startMonth" class="select inline"></select>
+        <span>月</span>
+        <button id="genBtn" class="btn ghost">生成逐年清单</button>
+      </div>
+      <p class="hint">从首次缴费年自动铺到今年（<span id="curYear">2026</span> 年）；首年按实际起始月计算月数，之后每年 12 个月。</p>
+    </section>
+
+    <section class="card">
       <div class="tabs">
-        <button class="tab active" data-tab="manual">手动录入</button>
+        <button class="tab active" data-tab="manual">手动逐年录入</button>
         <button class="tab" data-tab="excel">Excel 导入</button>
         <button class="tab" data-tab="pdf">PDF 导入</button>
       </div>
 
-      <!-- 手动录入 -->
       <div id="panel-manual" class="panel">
-        <div id="manualRows" class="rows"></div>
-        <button id="addRow" class="btn-ghost">+ 添加一行</button>
-      </div>
-
-      <!-- Excel 导入 -->
-      <div id="panel-excel" class="panel hidden">
-        <p class="hint">支持列名含「年份 / 缴费月数 / 月缴费基数（月平均缴费工资）」的表格。可先下载模板对照。</p>
-        <div class="file-row">
-          <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
-          <button id="dlTemplate" class="btn-ghost">下载模板</button>
+        <div class="grid grid-head">
+          <span>年份</span><span>月数</span><span>月均缴费基数（元）</span><span></span>
         </div>
-        <div id="excelPreview" class="preview hidden"></div>
+        <div id="grid"></div>
+        <div class="row mt">
+          <button id="addRow" class="btn ghost">+ 添加一行</button>
+          <button id="sampleBtn" class="btn ghost">填充示例</button>
+          <button id="clearBtn" class="btn ghost">清空</button>
+        </div>
+        <p class="hint">有缴费的年份填月均基数；中间断缴的年份留空即可（系统按参保地规则处理）。</p>
       </div>
 
-      <!-- PDF 导入 -->
+      <div id="panel-excel" class="panel hidden">
+        <div class="row">
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+          <button id="dlTemplate" class="btn ghost">下载导入模板</button>
+        </div>
+        <p class="hint">Excel 需含「年份」「缴费月数」「月缴费基数」三列（列名含这些关键字即可）。导入后自动填充到上方逐年清单。</p>
+        <div id="excelPreview"></div>
+      </div>
+
       <div id="panel-pdf" class="panel hidden">
-        <p class="hint">上传社保缴费凭证 / 权益单 PDF。系统将<strong>尽力</strong>从文本中提取「年份 + 缴费基数」，识别后请务必核对。</p>
-        <div class="file-row">
+        <div class="row">
           <input type="file" id="pdfFile" accept=".pdf">
         </div>
-        <div id="pdfPreview" class="preview hidden"></div>
+        <p class="hint">PDF 尽力识别「年份 + 缴费基数」文本行并填充到逐年清单（扫描件/图片型 PDF 可能识别不佳，建议改用 Excel）。</p>
+        <div id="pdfPreview"></div>
       </div>
-
-      <button id="calcBtn" class="btn-primary">计算</button>
     </section>
 
-    <section id="result" class="card hidden"></section>
-  </main>
+    <button id="calcBtn" class="btn primary">计算平均缴费指数</button>
 
-  <footer class="footer">
-    <p>数据仅供参考，以社保经办机构核定为准。纯前端计算，不上传任何数据。</p>
-  </footer>
+    <section id="result" class="card hidden"></section>
+
+    <footer class="foot">
+      <p>数据口径：社平工资取自各省份公开数据，计息按 1996–2025 年记账利率表。结果仅供参考，以社保经办机构核定为准。</p>
+    </footer>
+  </main>
 
   <script src="calc-index.js"></script>
   <script src="provinces-index-data.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,3 @@
-// AUTO-GENERATED from source — 请勿手改，改源码后重跑 scripts/build-web-index.js
-window.CalcIndex = (function () {
-  const module = { exports: {} };
 /**
  * ════════════════════════════════════════════════════════
  *  calcIndex — 本人平均缴费工资指数计算引擎
@@ -487,72 +484,13 @@ function round2(n) { return Math.round(n * 100) / 100 }
 
 
 // ════════════════════════════════════════════════════════
-
-/**
- * 反推模式②：已知当前月缴费基数 -> 反推历年基数 + 平均指数 + 账户余额
- * 口径：当前基数 / 缴费期末年【当年社平】 = 当下指数；历年按该比例 -> 基数 = 当年社平 x 当下指数
- * （与 2026-07-09 数据规则统一用"当年社平"）
- */
-function inferYearlyFromCurrentBase({ provinceConfig, startYear, startMonth, totalMonths, currentBase, gapYearCountsInAvg = false }) {
-  const salaryHist = provinceConfig.avg_salary_history || {}
-  const span = spreadMonthsToYears({ startYear, startMonth, totalMonths })
-  if (!span || span.length === 0) return { error: '无法构建缴费年度序列，请检查首缴年月与缴费月数。' }
-  const endYear = span[span.length - 1].year
-  const endSocial = getSocialAvg(salaryHist, endYear)
-  if (!endSocial || endSocial <= 0) return { error: '缺少缴费期末年（' + endYear + '年）的社平数据，无法用当前基数换算。' }
-  if (!(currentBase > 0)) return { error: '当前月缴费基数必须大于 0。' }
-  const currentIndex = currentBase / endSocial
-  const synth = span.map(function (s) {
-    const social = getSocialAvg(salaryHist, s.year)
-    return { year: s.year, months: s.months, baseAvg: (social && social > 0) ? social * currentIndex : null }
-  }).filter(function (r) { return r.baseAvg != null })
-  if (synth.length === 0) return { error: '无有效社平数据，无法反推历年基数。' }
-  const fwd = calculateIndex({ provinceConfig, contribution: synth, granularity: 'A', gapYearCountsInAvg })
-  if (fwd.error) return { error: fwd.error }
-  fwd._meta = Object.assign({}, fwd._meta, {
-    reverseMode: 'currentBase',
-    currentIndex: round4(currentIndex),
-    currentBase: round4(currentBase),
-    currentYear: endYear
-  })
-  return fwd
-}
-
-/**
- * 反推模式③：已知目标平均指数 -> 反推历年应缴基数
- * 口径：每年基数 = 当年社平 x 目标指数（与 2026-07-09 数据规则统一用"当年社平"）
- */
-function inferYearlyFromTargetIndex({ provinceConfig, startYear, startMonth, totalMonths, targetIndex, gapYearCountsInAvg = false }) {
-  const salaryHist = provinceConfig.avg_salary_history || {}
-  const span = spreadMonthsToYears({ startYear, startMonth, totalMonths })
-  if (!span || span.length === 0) return { error: '无法构建缴费年度序列，请检查首缴年月与缴费月数。' }
-  if (!(targetIndex > 0)) return { error: '目标平均指数必须大于 0。' }
-  const synth = span.map(function (s) {
-    const social = getSocialAvg(salaryHist, s.year)
-    return { year: s.year, months: s.months, baseAvg: (social && social > 0) ? social * targetIndex : null }
-  }).filter(function (r) { return r.baseAvg != null })
-  if (synth.length === 0) return { error: '无有效社平数据，无法反推历年基数。' }
-  const fwd = calculateIndex({ provinceConfig, contribution: synth, granularity: 'A', gapYearCountsInAvg })
-  if (fwd.error) return { error: fwd.error }
-  fwd._meta = Object.assign({}, fwd._meta, {
-    reverseMode: 'targetIndex',
-    targetIndex: round4(targetIndex),
-    appliedIndex: round4(targetIndex)
-  })
-  return fwd
-}
-
-
 //  导出
 // ════════════════════════════════════════════════════════
 
-module.exports = {
+window.CalcIndex = {
   // 核心 API
   calculateIndex,
   inferIndexFromBalance,
-  inferYearlyFromCurrentBase,
-  inferYearlyFromTargetIndex,
-  spreadMonthsToYears,
 
   // 辅助
   getRate,
@@ -567,6 +505,3 @@ module.exports = {
   date: '2026-07-08',
   source: '剪刀财经《缴费基数&记账利率 1996-2025年》'
 }
-
-  return module.exports;
-})();
