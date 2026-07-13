@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>本人平均缴费指数计算器</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Excel 解析 (SheetJS) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <!-- PDF 解析 (pdf.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+</head>
+<body>
+  <header class="header">
+    <h1>本人平均缴费指数计算器</h1>
+    <p>选择参保地，录入或导入逐年缴费基数，一键算出<strong>平均缴费指数</strong>与<strong>个人账户余额</strong>。</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <label class="field">
+        <span>参保地</span>
+        <select id="province"></select>
+      </label>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="manual">手动录入</button>
+        <button class="tab" data-tab="excel">Excel 导入</button>
+        <button class="tab" data-tab="pdf">PDF 导入</button>
+      </div>
+
+      <!-- 手动录入 -->
+      <div id="panel-manual" class="panel">
+        <div id="manualRows" class="rows"></div>
+        <button id="addRow" class="btn-ghost">+ 添加一行</button>
+      </div>
+
+      <!-- Excel 导入 -->
+      <div id="panel-excel" class="panel hidden">
+        <p class="hint">支持列名含「年份 / 缴费月数 / 月缴费基数（月平均缴费工资）」的表格。可先下载模板对照。</p>
+        <div class="file-row">
+          <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+          <button id="dlTemplate" class="btn-ghost">下载模板</button>
+        </div>
+        <div id="excelPreview" class="preview hidden"></div>
+      </div>
+
+      <!-- PDF 导入 -->
+      <div id="panel-pdf" class="panel hidden">
+        <p class="hint">上传社保缴费凭证 / 权益单 PDF。系统将<strong>尽力</strong>从文本中提取「年份 + 缴费基数」，识别后请务必核对。</p>
+        <div class="file-row">
+          <input type="file" id="pdfFile" accept=".pdf">
+        </div>
+        <div id="pdfPreview" class="preview hidden"></div>
+      </div>
+
+      <button id="calcBtn" class="btn-primary">计算</button>
+    </section>
+
+    <section id="result" class="card hidden"></section>
+  </main>
+
+  <footer class="footer">
+    <p>数据仅供参考，以社保经办机构核定为准。纯前端计算，不上传任何数据。</p>
+  </footer>
+
+  <script src="calc-index.js"></script>
+  <script src="provinces-index-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
