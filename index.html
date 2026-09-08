@@ -1,87 +1,136 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>本人平均缴费指数计算器</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平均缴费指数计算器 | 养老金计算平台</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <h1>本人平均缴费指数计算器</h1>
-    <p class="sub">根据逐年缴费基数与参保地社平工资，计算平均缴费工资指数及个人账户余额</p>
+<div class="container">
+
+  <!-- 隐私合规同意条幅（P0-3）：同意前禁用计算 -->
+  <div id="privacyBar" class="privacy-bar" style="display:none">
+    <span class="privacy-text">
+      我们仅在本机计算你输入的缴费数据，不会上传。点“同意”即代表你已知晓并同意
+      <a href="privacy.html" target="_blank" rel="noopener">《隐私保护指引》</a>。
+    </span>
+    <button class="btn-privacy" id="privacyAgree" type="button">同意</button>
+  </div>
+
+  <div style="max-width:760px;margin:0 auto;padding:14px 16px 0">
+    <a href="../" style="color:#1d4ed8;font-size:14px;text-decoration:none">‹ 返回养老金测算</a>
+  </div>
+
+  <header class="header">
+    <h1>平均缴费指数计算器</h1>
+    <p>选择参保地、填入逐年缴费基数，一键算出平均缴费指数与个人账户余额</p>
   </header>
 
-  <main class="wrap">
-    <section class="card">
-      <label class="lbl">参保地（省级行政区）</label>
-      <select id="province" class="select"></select>
-      <p id="gapHint" class="hint"></p>
-    </section>
+  <!-- 基础信息 -->
+  <section class="card">
+    <div class="card-title">基础信息</div>
+    <div class="field">
+      <label>参保地</label>
+      <select id="province"></select>
+      <div class="warn" id="gapHint" style="display:none"></div>
+    </div>
+    <div class="field">
+      <label>首次缴费年月</label>
+      <input type="month" id="startDate" min="1990-01">
+    </div>
+    <div class="field">
+      <label>视同缴费年限（年）</label>
+      <input type="number" id="deemedYears" min="0" max="40" step="1" value="0" placeholder="如 10（仅部分省份纳入指数）">
+      <div class="hint" id="deemedHint"></div>
+    </div>
+    <div class="field" id="deemedStartField" style="display:none">
+      <label>视同起始年</label>
+      <input type="number" id="deemedStartYear" min="1970" max="2025" step="1" value="1990" placeholder="如 1990（浙/苏/赣分段取值用）">
+      <div class="hint" id="deemedStartHint"></div>
+    </div>
+    <div class="field" id="gdCityField" style="display:none">
+      <label>广东参保城市</label>
+      <select id="gdCity">
+        <option value="">全省（默认 D=1.000）</option>
+        <option value="广州">广州市（D=1.191）</option>
+        <option value="深圳">深圳市（D=1.529，独立社平）</option>
+        <option value="珠海">珠海市（D=1.389）</option>
+        <option value="汕头">汕头市（D=0.821）</option>
+        <option value="韶关">韶关市（D=0.836）</option>
+        <option value="河源">河源市（D=0.512）</option>
+        <option value="梅州">梅州市（D=0.638）</option>
+        <option value="惠州">惠州市（D=0.961）</option>
+        <option value="汕尾">汕尾市（D=0.584）</option>
+        <option value="东莞">东莞市（D=1.169）</option>
+        <option value="中山">中山市（D=0.963）</option>
+        <option value="江门">江门市（D=1.066）</option>
+        <option value="佛山">佛山市（D=1.304）</option>
+        <option value="阳江">阳江市（D=0.678）</option>
+        <option value="湛江">湛江市（D=0.742）</option>
+        <option value="茂名">茂名市（D=0.712）</option>
+        <option value="肇庆">肇庆市（D=0.761）</option>
+        <option value="云浮">云浮市（D=0.902）</option>
+        <option value="清远">清远市（D=0.725）</option>
+        <option value="潮州">潮州市（D=0.602）</option>
+        <option value="揭阳">揭阳市（D=0.546）</option>
+      </select>
+      <div class="hint" id="gdCityHint">广东省 1993 年底前视同缴费年限的“视同缴费指数(D)”按粤府函〔2021〕294号 查表；深圳用独立社平算分母。</div>
+    </div>
+  </section>
 
-    <section class="card">
-      <label class="lbl">首次缴费年月</label>
-      <div class="row">
-        <select id="startYear" class="select inline"></select>
-        <span>年</span>
-        <select id="startMonth" class="select inline"></select>
-        <span>月</span>
-        <button id="genBtn" class="btn ghost">生成逐年清单</button>
+  <!-- 逐年缴费明细 -->
+  <section class="card">
+    <div class="card-title">逐年缴费明细（未缴年份留空）</div>
+    <button class="btn-secondary" id="genBtn" type="button">生成逐年清单</button>
+    <div id="yearlyWrap" style="display:none">
+      <div class="tbl">
+        <div class="tr th"><span class="c1">年份</span><span class="c2">月数</span><span class="c3">月均缴费基数</span></div>
+        <div id="yearlyRows"></div>
       </div>
-      <p class="hint">从首次缴费年自动铺到今年（<span id="curYear">2026</span> 年）；首年按实际起始月计算月数，之后每年 12 个月。</p>
-    </section>
+    </div>
+  </section>
 
-    <section class="card">
-      <div class="tabs">
-        <button class="tab active" data-tab="manual">手动逐年录入</button>
-        <button class="tab" data-tab="excel">Excel 导入</button>
-        <button class="tab" data-tab="pdf">PDF 导入</button>
+  <button class="btn-primary" id="calcBtn" type="button">计算平均缴费指数</button>
+
+  <!-- 结果 -->
+  <section class="card result" id="result" style="display:none">
+    <div class="card-title">平均缴费工资指数</div>
+    <div class="metric">
+      <span class="m-label">本人平均缴费工资指数</span>
+      <span class="m-value big" id="avgIndex">-</span>
+    </div>
+    <div class="metric">
+      <span class="m-label">个人账户余额（估算）</span>
+      <span class="m-value" id="accountBalance">-</span>
+    </div>
+    <div class="metric">
+      <span class="m-label">累计缴费</span>
+      <span class="m-value" id="totalMonths">-</span>
+    </div>
+    <div class="metric" id="transRow" style="display:none">
+      <span class="m-label">过渡性养老金指数 (transIndex)</span>
+      <span class="m-value" id="transIndex">-</span>
+    </div>
+    <div class="warn" id="gapNote" style="display:none"></div>
+    <div class="warn" id="deemedNote" style="display:none"></div>
+
+    <div class="card-title" style="margin-top:22px">逐年明细</div>
+    <div class="tbl">
+      <div class="tr th">
+        <span class="c1">年份</span><span class="c2">月数</span><span class="c3">月均基数</span><span class="c4">指数</span><span class="c5">年末余额</span>
       </div>
+      <div id="detailRows"></div>
+    </div>
+  </section>
 
-      <div id="panel-manual" class="panel">
-        <div class="grid grid-head">
-          <span>年份</span><span>月数</span><span>月均缴费基数（元）</span><span></span>
-        </div>
-        <div id="grid"></div>
-        <div class="row mt">
-          <button id="addRow" class="btn ghost">+ 添加一行</button>
-          <button id="sampleBtn" class="btn ghost">填充示例</button>
-          <button id="clearBtn" class="btn ghost">清空</button>
-        </div>
-        <p class="hint">有缴费的年份填月均基数；中间断缴的年份留空即可（系统按参保地规则处理）。</p>
-      </div>
+  <p class="foot">数据来源：各省历年社平工资（元/月）与记账利率表（1996-2025）。计算结果仅供参考，具体以社保经办部门核定为准。</p>
+</div>
 
-      <div id="panel-excel" class="panel hidden">
-        <div class="row">
-          <input type="file" id="excelFile" accept=".xlsx,.xls">
-          <button id="dlTemplate" class="btn ghost">下载导入模板</button>
-        </div>
-        <p class="hint">Excel 需含「年份」「缴费月数」「月缴费基数」三列（列名含这些关键字即可）。导入后自动填充到上方逐年清单。</p>
-        <div id="excelPreview"></div>
-      </div>
+<div id="toast" class="toast"></div>
 
-      <div id="panel-pdf" class="panel hidden">
-        <div class="row">
-          <input type="file" id="pdfFile" accept=".pdf">
-        </div>
-        <p class="hint">PDF 尽力识别「年份 + 缴费基数」文本行并填充到逐年清单（扫描件/图片型 PDF 可能识别不佳，建议改用 Excel）。</p>
-        <div id="pdfPreview"></div>
-      </div>
-    </section>
-
-    <button id="calcBtn" class="btn primary">计算平均缴费指数</button>
-
-    <section id="result" class="card hidden"></section>
-
-    <footer class="foot">
-      <p>数据口径：社平工资取自各省份公开数据，计息按 1996–2025 年记账利率表。结果仅供参考，以社保经办机构核定为准。</p>
-    </footer>
-  </main>
-
-  <script src="calc-index.js"></script>
-  <script src="provinces-index-data.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="app.js"></script>
+<script src="provinces-index-data.js"></script>
+<script src="calc-index.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

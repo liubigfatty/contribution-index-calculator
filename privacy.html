@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隐私保护指引 | 平均缴费指数计算器</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:#f5f6fa; color:#1d1f24; line-height:1.7; margin:0; }
+  .wrap { max-width:760px; margin:0 auto; padding:32px 18px 64px; }
+  h1 { font-size:24px; margin:0 0 8px; }
+  h2 { font-size:18px; margin:28px 0 8px; }
+  p, li { font-size:15px; color:#333; }
+  a { color:#1d4ed8; }
+  .meta { color:#86868b; font-size:13px; margin-bottom:8px; }
+  .back { display:inline-block; margin-bottom:18px; color:#1d4ed8; text-decoration:none; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">‹ 返回计算器</a>
+  <h1>隐私保护指引</h1>
+  <div class="meta">生效版本：1.0.0　适用范围：平均缴费指数计算器（微信小程序 / 网站）</div>
+
+  <h2>一、我们如何对待你的数据</h2>
+  <p>本工具用于计算本人平均缴费指数。你填写的「参保省份、首次缴费年月、逐年缴费基数」等参数：在<strong>小程序端仅临时提交至云函数进行指数计算，计算完成后结果立即返回本机、不做任何持久化存储、不写入数据库、不关联任何身份标识</strong>；在<strong>网页端则完全在本机浏览器内计算、不上传</strong>。我们均<strong>不会收集、存储你的身份信息，也不用于任何画像与营销</strong>。</p>
+
+  <h2>二、我们收集哪些个人信息</h2>
+  <p><strong>不收集身份信息。</strong>我们不要求登录、不索取姓名、身份证号、手机号、人脸、位置等任何身份信息或敏感个人信息；不集成任何统计、广告或第三方 SDK。你填写的逐年缴费基数属个人收入数据，仅用于本次指数计算，计算后不留存。</p>
+
+  <h2>三、数据流向</h2>
+  <ul>
+    <li><strong>输入</strong>：你手动填写的逐年缴费基数等参数。</li>
+    <li><strong>计算</strong>：调用内置引擎与随包下发的各省社平数据包（public 工资统计口径，不含任何个人字段）；小程序端在云函数内完成、结果仅返回本机，网页端在本机完成。</li>
+    <li><strong>输出</strong>：计算结果仅在你当前设备上展示。仅在你点击「同意」后，客户端会记录一个“已同意”标记，用于记忆你的授权状态——该标记不包含任何你填写的计算数据。</li>
+  </ul>
+
+  <h2>四、关于社平数据包与 verified_count</h2>
+  <p>随包下发的省份社平数据仅含「历年社平工资」与「verified_count（已核对年数，信心标志）」，均为公开的工资统计口径，<strong>不含任何个人字段</strong>。verified_count 仅用于提示该省数据核对进度，不参与计算、不关联个人。</p>
+
+  <h2>五、你的权利</h2>
+  <p>你可以随时清除客户端本地存储（或清空站点数据）来移除授权标记；清除后再次进入将重新展示同意条幅。由于我们不存储任何你的个人信息，你无需向我们提出删除请求。</p>
+
+  <h2>六、合规依据</h2>
+  <p>《中华人民共和国个人信息保护法》及微信小程序《隐私保护指引》相关规范。本工具对个人信息仅做计算用途、不留存，风险等级最低。</p>
+
+  <p style="margin-top:32px;color:#86868b;font-size:13px">如你对本指引有疑问，可通过微信小程序内进行反馈。</p>
+</div>
+</body>
+</html>
