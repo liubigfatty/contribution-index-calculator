@@ -4,7 +4,7 @@ window.CalcIndex = (function () {
 /**
  * ════════════════════════════════════════════════════════
  *  calcIndex — 本人平均缴费工资指数计算引擎（逐省一致版 v2）
- *  版本: 2.1.1 | 2026-08-15
+ *  版本: 2.3.0 | 2026-09-21
  *
  *  功能:
  *    正向: 缴费信息 + 省规 → 平均指数(avgIndex) + 过渡指数(transIndex) + 个人账户余额
@@ -12,11 +12,18 @@ window.CalcIndex = (function () {
  *    支持: 三颗粒度输入 (A详细/B中等/C最简)
  *
  *  逐省一致（依据 docs/08 矩阵 09 + 规则 06 v2，四方印证官网）：
- *    D1 分母口径社平：默认上年度社平；陕西/西藏=当年社平
+ *    D1 分母口径社平：**31 省统一** = 当年缴费工资 ÷ 当年使用的社平基数
+ *       （hist[Y] = Y 年度执行社平 = Y-1 统计年；即 2024 年缴费 ÷ hist[2024] = 2023 年统计年社平）
+ *       ⚠️ 2026-09-20：取消陕西/西藏「当年统计年」特例，全国一口径
  *    D2 视同年进指数分母：20省进 / 11省不进（逐省开关）
  *    D3 双指数/双基数：京/津/晋/苏/吉=真双指数(transIndex独立)；辽/吉=双基数加权
  *    D4 视同指数：默认1.0；广东查表；浙江替代指数；江苏/江西分段
- *    D5 封顶保底：默认[0.6,3.0]；沪分段保底；渝上限分段；桂建账前<1按1
+ *    D5 指数修正：**不做通用 [0.6,3.0] 夹取**（2026-09-21 起）。60%/300% 是缴费端
+ *       基数核定口径（国办发〔2019〕13号），非计算端规则；合规数据指数天然在区间内，
+ *       夹取为恒等变换。且跨省流动按国办发〔2009〕66号用**退休地社平**作分母，
+ *       指数跑出区间是制度既定结果，夹取即篡改国家算法。
+ *       仅保留省级明文：沪 1993-2013 分段保底；渝上限分段；桂建账前<1按1。
+ *       超区间年份**不改数值**，由 yearsDetail.outOfRange + warnings[] 暴露提示。
  *    D6 断缴计入分母：京/津/陕/浙/云(GAP_ZERO,记0)；黑龙江(gapFloor=0.6,记0.6)
  *
  *  数据源:
@@ -34,7 +41,7 @@ const UNIFIED_RATES = {
   2006: 0.0252, 2007: 0.0414, 2008: 0.0414, 2009: 0.0225, 2010: 0.0225,
   2011: 0.0350, 2012: 0.0350, 2013: 0.0300, 2014: 0.0350, 2015: 0.0350,
   2016: 0.0831, 2017: 0.0712, 2018: 0.0829, 2019: 0.0761, 2020: 0.0604,
-  2021: 0.0535, 2022: 0.0612, 2023: 0.0397, 2024: 0.0262, 2025: 0.0150
+  2021: 0.0669, 2022: 0.0612, 2023: 0.0397, 2024: 0.0262, 2025: 0.0150, 2026: 0.0260
 }
 
 /**
@@ -60,7 +67,7 @@ function getSocialAvg(avgSalaryHistory, year) {
 // ════════════════════════════════════════════════════════
 //  逐省规则表（依据 09 矩阵 + 06 v2，四方印证官网查实）
 //  字段说明：
-//    denom:        'prev' 上年度社平(29省) | 'current' 当年社平(陕/藏)
+//    denom:        'prev' 当年使用的社平基数(31省统一) | 'current' 当年统计年社平(2026-09-20起无省份使用)
 //    deemedInDenom:true=视同年进指数分母(20省) | false=不进(11省)
 //    deemedIndex:  '1.0' 默认 | 'table_gd' 广东查表 | 'replace_zj' 浙江替代指数
 //                  | 'segmented_js' 江苏分段 | 'segmented_jx' 江西分段
@@ -96,8 +103,8 @@ const PROVINCE_RULES = {
   sichuan:    { denom: 'prev',    deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '1996-01' },
   guizhou:    { denom: 'prev',    deemedInDenom: true,  deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '1998-01' },
   yunnan:     { denom: 'prev',    deemedInDenom: true,  deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: true,  accountStart: '1995-10' },
-  xizang:     { denom: 'current', deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '2000-07' },
-  shaanxi:    { denom: 'current', deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: true,  accountStart: '1996-01' },
+  xizang:     { denom: 'prev',    deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '2000-07' },
+  shaanxi:    { denom: 'prev',    deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: true,  accountStart: '1996-01' },
   gansu:      { denom: 'prev',    deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '1996-01' },
   qinghai:    { denom: 'prev',    deemedInDenom: false, deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '1996-01' },
   ningxia:    { denom: 'prev',    deemedInDenom: true,  deemedIndex: '1.0',          cap: 'default',   dualIndex: false,      gapZero: false, accountStart: '1996-01' },
@@ -166,47 +173,88 @@ function parseAccountStartYear(accountStart) {
 }
 
 /**
- * D1 分母口径：上年社平（默认）或当年社平（陕/藏）
+ * D1 分母口径（2026-09-20 起 31 省统一）
+ *
+ * 口径定义：当年缴费工资 ÷ **当年使用的社平基数**
+ *   例：2024 年缴费工资 ÷ hist[2024]（= 2024 年度执行社平 = 2023 统计年社平）
+ *
+ * ⚠️ 年度语义（SALARY_SEMANTICS_V2，2026-09-20 统一）：
+ *    salaryHist[Y] = Y 年度执行社平 = Y-1 统计年社平
+ *    故「缴费年 year 用当年使用基数」 ⇒ 取 [year]
+ *   （'current' 分支取 [year+1] = 当年统计年社平，2026-09-20 起已无省份使用，保留备用）
  */
 function getDenominator(rule, salaryHist, year) {
   if (rule.denom === 'current') {
-    return getSocialAvg(salaryHist, year) // 当年
+    return getSocialAvg(salaryHist, year + 1) || getSocialAvg(salaryHist, year) // 当年
   }
-  const prev = getSocialAvg(salaryHist, year - 1) // 上年
+  const prev = getSocialAvg(salaryHist, year) // 上年
   if (prev && prev > 0) return prev
-  return getSocialAvg(salaryHist, year) // 兜底：上年缺则当年
+  return getSocialAvg(salaryHist, year + 1) // 兜底：本年缺则用次年（更新的统计年）
 }
 
 /**
- * D5 封顶保底
+ * D5 省级明文指数修正（2026-09-21 修订：**取消通用 [0.6, 3.0] 夹取**）
+ *
+ * ⚠️ 关键区分：**缴费端约束 ≠ 计算端规则**
+ *    「60% 保底 / 300% 封顶」是**缴费基数核定**口径（国办发〔2019〕13号），
+ *    约束的是「能缴多少」，不是「指数怎么算」。合规数据的指数天然落在 [0.6, 3.0]
+ *    ——实测 30 省按参保地 60%/300% 档缴费者，raw 恰好 = 0.6000 / 3.0000，
+ *    夹取为恒等变换，零作用。
+ *
+ *    且国办发〔2009〕66号明文规定跨省流动人员：
+ *    「以本人在**各参保地的缴费工资**和**待遇领取地相对应各年度职工平均工资**
+ *      计算本人的缴费工资指数」
+ *    ⇒ 参保地下限按参保地社平核定，指数分母却是退休地社平；两地社平不一致时
+ *      指数**必然**跑出 [0.6, 3.0]，这是制度既定结果。夹取即篡改国家规定算法。
+ *
+ * 故：**仅保留省级明文规定的计算端修正规则**，其余一律按实际比值。
+ *    - 上海：1993–2013 分段保底（沪人社规〔2021〕32号「1993–2010 指数<1 按 1」+ 过渡安排）
+ *    - 重庆：上限分段 1993–1997 为 2、1998 后为 3（渝劳社发〔2006〕41号）
+ *    - 广西：建账前实际缴费年 <1 按 1
+ *    - 黑龙江：未缴费年按 0.6（gapFloor，属 D6，不在此处）
+ *
+ * 超出 [0.6, 3.0] 的年份**不做数值修改**，仅由 `yearsDetail.outOfRange` 与
+ * 顶层 `warnings[]` 暴露，交由前端提示用户核对（可能是跨省流动的正常结果，
+ * 也可能是基数填错）。
+ *
+ * 详见 `docs/08-缴费指数小程序/_核查-0.6-3.0是缴费端约束还是计算端约束（2026-09-21）.md`
  */
 function applyCap(rule, rawIdx, year, accountStartYear) {
+  // 上海：省级明文分段保底；2014 起无明文 ⇒ 按实际比值
   if (rule.cap === 'shanghai') {
     const floor = shanghaiFloor(year)
-    return Math.min(3.0, Math.max(floor, rawIdx))
+    return floor != null ? Math.max(floor, rawIdx) : rawIdx
   }
+  // 重庆：上限分段为省级明文（全时段）；无明文下限
   if (rule.cap === 'chongqing') {
-    // 指数上限 1993-1997 为 2；1998 后为 3
     const max = (year >= 1993 && year <= 1997) ? 2.0 : 3.0
-    return Math.min(max, Math.max(0.6, rawIdx))
+    return Math.min(max, rawIdx)
   }
+  // 广西：建账前 <1 按 1 为省级明文；无明文下限/上限
   if (rule.cap === 'guangxi') {
-    // 建账前实际年：指数<1 按 1 计
-    if (year < accountStartYear && rawIdx < 1) return Math.min(3.0, Math.max(1.0, rawIdx))
-    return Math.min(3.0, Math.max(0.6, rawIdx))
+    return (year < accountStartYear && rawIdx < 1) ? 1.0 : rawIdx
   }
-  // 默认 [0.6, 3.0]
-  return Math.min(3.0, Math.max(0.6, rawIdx))
+  // 其余（29 省）：按实际比值——缴费端约束不适用于计算端
+  return rawIdx
+}
+
+/** 指数是否超出常规区间 [0.6, 3.0]——仅用于提示，不改变数值 */
+function outOfRangeFlag(idx) {
+  if (idx == null || !isFinite(idx)) return null
+  if (idx < 0.6 - 1e-9) return 'low'
+  if (idx > 3.0 + 1e-9) return 'high'
+  return null
 }
 
 /**
- * 上海分段保底：93-2011 年 <1 按 1；2012 年 ≥0.85；2013 年 ≥0.75；其余 ≥0.6
+ * 上海分段保底：93-2011 年 <1 按 1；2012 年 ≥0.85；2013 年 ≥0.75；
+ * 2014 年起无省级明文 ⇒ 返回 null（按实际比值）
  */
 function shanghaiFloor(year) {
   if (year >= 1993 && year <= 2011) return 1.0
   if (year === 2012) return 0.85
   if (year === 2013) return 0.75
-  return 0.6
+  return null
 }
 
 /**
@@ -306,6 +354,7 @@ function calculateIndex({ provinceConfig, provinceCode, contribution, granularit
   let totalWeight = 0         // 总权重（月数）
   let accountBalance = 0      // 个人账户余额（复利累计）
   const yearsDetail = []       // 逐年明细
+  const warnings = []          // 超常规区间 [0.6,3.0] 的年份提示（仅提示，不改数值）
 
   // 按年份排序
   yearlyRecords.sort((a, b) => a.year - b.year)
@@ -362,15 +411,30 @@ function calculateIndex({ provinceConfig, provinceCode, contribution, granularit
       continue
     }
 
-    // ── 计算该年平均缴费指数 + D5 封顶保底 ──>
+    // ── 计算该年平均缴费指数 + D5 省级明文修正 ──>
     const yearIndexRaw = rec.baseAvg / socialAvg
     const yearIndex = applyCap(rule, yearIndexRaw, year, accountStartYear)
+    const flag = outOfRangeFlag(yearIndex)
+    if (flag) {
+      warnings.push({
+        year,
+        type: flag === 'low' ? 'below_0_6' : 'above_3_0',
+        index: round4(yearIndex),
+        indexRaw: round4(yearIndexRaw),
+        baseAvg: rec.baseAvg,
+        socialAvg,
+        msg: `${year} 年指数 ${round4(yearIndex).toFixed(4)}（实际比值 ${round4(yearIndexRaw).toFixed(4)}）` +
+             (flag === 'low' ? ' 低于 0.6' : ' 高于 3.0') +
+             '，属常规区间之外。跨省流动人员按退休地社平计算属正常结果；' +
+             '若一直在本地参保，请核对缴费基数是否与参保地匹配。'
+      })
+    }
 
     // 加权累加（权重=该年月数）
     totalIndexSum += yearIndex * rec.months
     totalWeight += rec.months
 
-    // ── 计算个人账户本年计入金额（用实际基数，不受封顶影响）──>
+    // ── 计算个人账户本年计入金额（用实际基数，不受指数修正影响）──>
     const annualAccountPay = rec.baseAvg * rec.months * 0.08
     const rate = getRate(year)
     accountBalance = accountBalance * (1 + rate) + annualAccountPay
@@ -381,6 +445,8 @@ function calculateIndex({ provinceConfig, provinceCode, contribution, granularit
       baseAvg: rec.baseAvg,
       socialAvg,
       index: yearIndex,
+      indexRaw: round4(yearIndexRaw),
+      outOfRange: flag,
       weightedIndex: yearIndex * rec.months,
       rate,
       accountContribution: annualAccountPay,
@@ -416,6 +482,7 @@ function calculateIndex({ provinceConfig, provinceCode, contribution, granularit
     totalMonths,
     totalYears: round2(totalYears),
     yearsDetail,
+    warnings,
     _meta: {
       granularity,
       province: provinceConfig.name || provinceCode || 'unknown',
@@ -654,6 +721,8 @@ module.exports = {
   getSocialAvg,
   getDenominator,
   applyCap,
+  outOfRangeFlag,
+  shanghaiFloor,
   resolveSalaryHist,
   normalizeToYearly,
 
